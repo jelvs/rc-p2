@@ -1,7 +1,7 @@
 import java.net.*;
 import java.io.*;
 
-public class TinyHTTPClient extends Thread{
+public class HTTPClient extends Thread{
 
 	/**
 	 * Reads one message from the HTTP header
