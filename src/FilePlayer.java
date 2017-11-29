@@ -1,9 +1,10 @@
 import java.net.*;
+import java.util.TreeMap;
 import java.io.*;
 
 public class FilePlayer extends Thread{
 
-
+	private static TreeMap<String, List<Segment>> segments = new TreeMap<String, List<Segment>>();
 	private static String TXT = "descriptor.txt";
 
 
@@ -46,13 +47,24 @@ public class FilePlayer extends Thread{
 		
 		String answerLine = readLine(fromServer);
 		
-		System.out.println("Got answer: "+answerLine+"\n");
+		System.out.println("Got answer: "+ answerLine +"\n");
 		
 		String[] result = parseHttpReply(answerLine);
 		answerLine = readLine(fromServer);
 		while ( !answerLine.equals("") ) {
-			System.out.println("Header line:\t"+answerLine);
+			System.out.println("Header line:\t" + answerLine);
 			answerLine = readLine(fromServer);
+		}
+		
+		//Structure to read descriptor.txt
+		
+		BufferedReader in = new BufferedReader (new InputStreamReader(fromServer));
+		String content = "";
+		
+		while ((content = in.readLine()) != null) {
+			if(!content.startsWith("Video-") && !content.equals("")) {
+				
+			}
 		}
 		
 		
@@ -66,6 +78,10 @@ public class FilePlayer extends Thread{
 		System.out.println();
 		sock.close();
 	}
+	
+
+		
+		
 	
 	/**
 	 * Reads one message from the HTTP header
@@ -133,4 +149,5 @@ public class FilePlayer extends Thread{
 
 
 }
+	
 
