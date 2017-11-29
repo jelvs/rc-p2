@@ -1,21 +1,46 @@
 import java.net.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
 import java.util.TreeMap;
 import java.io.*;
 
 public class FilePlayer extends Thread{
-
-	private static TreeMap<String, List<Segment>> segments = new TreeMap<String, List<Segment>>();
+	
+	private static String url;
+	private static final String COCO = "C";
+	private static final String DANTE = "D";
+	private static TreeMap<Integer, ArrayList<String>> segments = new TreeMap<Integer, ArrayList<String>>();
+	private static ArrayList<String> seg = new ArrayList<String>();
 	private static String TXT = "descriptor.txt";
+	private static int avgB; // average bandWidth
 
 
 	public static void main(String[] args) throws Exception {
-		String url = args.length == 1 ? args[0] : "http://localhost:8080/"; //falta o nome do video em questao que ira reproduzir
+		
+		Scanner inn = new Scanner(System.in);
+		System.out.println("Iniciar coco = C || Iniciar dante = d");
+		String cmd = getCommand(inn);
+		switch(cmd){
+		case COCO:
+			url = args.length == 1 ? args[0] : "http://localhost:8080/coco" ; 	
+			break;
+		case DANTE:
+			url = args.length == 1 ? args[0] : "http://localhost:8080/dante" ;
+			break;
+		default:
+			break;
+		}
 		URL u = new URL(url);
+		
+	
+		
+		
 
 		System.out.println("\n========================================\n");
 		System.out.println("Processing url: "+url+"\n");
 		System.out.println("========================================\n");
-		
+
 		System.out.println("protocol = " + u.getProtocol());
 		System.out.println("authority = " + u.getAuthority());
 		System.out.println("host = " + u.getHost());
@@ -38,36 +63,77 @@ public class FilePlayer extends Thread{
 
 		System.out.println("\n========================================\n");
 		System.out.println("Connected to server");
-		
+
 		String request = String.format("GET %s HTTP/1.0\r\n" + "User-Agent: X-RC2017\r\n\r\n", descriptor);
 		toServer.write(request.getBytes());
-		
-		System.out.println("Sent request: "+request);
+
+		System.out.println("Sent request: "+ request);
 		System.out.println("========================================");
-		
+
 		String answerLine = readLine(fromServer);
-		
+
 		System.out.println("Got answer: "+ answerLine +"\n");
-		
+
 		String[] result = parseHttpReply(answerLine);
 		answerLine = readLine(fromServer);
 		while ( !answerLine.equals("") ) {
 			System.out.println("Header line:\t" + answerLine);
 			answerLine = readLine(fromServer);
 		}
-		
+
 		//Structure to read descriptor.txt
-		
+
 		BufferedReader in = new BufferedReader (new InputStreamReader(fromServer));
 		String content = "";
 		
+		
+
+
 		while ((content = in.readLine()) != null) {
-			if(!content.startsWith("Video-") && !content.equals("")) {
-				
+			String[] tmp = content.split("/");
+			
+			if(!content.equals("")) {
+				if(!content.startsWith("video") ) {
+					seg.add(tmp[2]);
+					segments.put(Integer.parseInt(tmp[1]), seg );
+						
+				}	
 			}
+
 		}
 		
-		
+		if(cmd.equals(COCO)) {
+			if(segments.containsKey(1)) {
+				avgB = 593614;
+			}
+			else if(segments.containsKey(2)) {
+				avgB = 983096;
+			}
+			else if(segments.containsKey(3)) {
+				avgB = 1363130;
+			}
+			else if(segments.containsKey(4)) {
+				avgB = 1763706;
+			} else {
+				avgB = 2125252;
+			}
+		}else { //dante
+			if(segments.containsKey(1)) {
+				avgB = 474213;
+			}
+			else if(segments.containsKey(2)) {
+				avgB = 1110624;
+			}
+			else if(segments.containsKey(3)) {
+				avgB = 1684559;
+			}
+			else if(segments.containsKey(4)) {
+				avgB = 2302036;
+			}
+			
+		}
+
+
 		System.out.println("\n========================================");
 		System.out.println("\nGot an empty line, showing body \n");
 		System.out.println("========================================");
@@ -78,11 +144,16 @@ public class FilePlayer extends Thread{
 		System.out.println();
 		sock.close();
 	}
+
+
+	private static String getCommand(Scanner inn) {
+		String input; 
+		input = inn.next().toUpperCase();
+		return input;
+	}
+	
 	
 
-		
-		
-	
 	/**
 	 * Reads one message from the HTTP header
 	 */
@@ -96,7 +167,7 @@ public class FilePlayer extends Thread{
 		}
 		return sb.toString() ;
 	} 
-	
+
 
 	/**
 	 * Parses the first line of the HTTP request and returns an array
@@ -149,5 +220,7 @@ public class FilePlayer extends Thread{
 
 
 }
-	
+
+
+
 
