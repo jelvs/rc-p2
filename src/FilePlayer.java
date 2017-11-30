@@ -1,6 +1,8 @@
 import java.net.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.TreeMap;
 import java.io.*;
@@ -11,9 +13,11 @@ public class FilePlayer extends Thread{
 	private static final String COCO = "C";
 	private static final String DANTE = "D";
 	private static TreeMap<Integer, ArrayList<String>> segments = new TreeMap<Integer, ArrayList<String>>();
+	private static Map<Integer, ArrayList<Integer>> avgBand = new HashMap<Integer, ArrayList<Integer>>();
 	private static ArrayList<String> seg = new ArrayList<String>();
+	private static ArrayList<Integer> avgB = new ArrayList<Integer>(); // average bandWidth
 	private static String TXT = "descriptor.txt";
-	private static int avgB; // average bandWidth
+	
 
 
 	public static void main(String[] args) throws Exception {
@@ -93,7 +97,7 @@ public class FilePlayer extends Thread{
 			String[] tmp = content.split("/");
 			
 			if(!content.equals("")) {
-				if(!content.startsWith("video") ) {
+				if(content.startsWith("video") ) {
 					seg.add(tmp[2]);
 					segments.put(Integer.parseInt(tmp[1]), seg );
 						
@@ -101,38 +105,7 @@ public class FilePlayer extends Thread{
 			}
 
 		}
-		
-		if(cmd.equals(COCO)) {
-			if(segments.containsKey(1)) {
-				avgB = 593614;
-			}
-			else if(segments.containsKey(2)) {
-				avgB = 983096;
-			}
-			else if(segments.containsKey(3)) {
-				avgB = 1363130;
-			}
-			else if(segments.containsKey(4)) {
-				avgB = 1763706;
-			} else {
-				avgB = 2125252;
-			}
-		}else { //dante
-			if(segments.containsKey(1)) {
-				avgB = 474213;
-			}
-			else if(segments.containsKey(2)) {
-				avgB = 1110624;
-			}
-			else if(segments.containsKey(3)) {
-				avgB = 1684559;
-			}
-			else if(segments.containsKey(4)) {
-				avgB = 2302036;
-			}
-			
-		}
-
+	
 
 		System.out.println("\n========================================");
 		System.out.println("\nGot an empty line, showing body \n");
@@ -150,6 +123,44 @@ public class FilePlayer extends Thread{
 		String input; 
 		input = inn.next().toUpperCase();
 		return input;
+	}
+	
+	private static void getAvgBand() {
+		if(segments.containsKey(1)) {
+			//position 0 = coco
+			//position 1 = dante
+			avgB.add(59314);
+			avgB.add(474213);	
+			avgBand.put(1, avgB);	
+		}
+		else if(segments.containsKey(2)) {
+			//position 0 = coco
+			//position 1 = dante
+			avgB.add(983096);
+			avgB.add(1110624);	
+			avgBand.put(2, avgB);
+		}
+		else if(segments.containsKey(3)) {
+			//position 0 = coco
+			//position 1 = dante
+			avgB.add(1363130);
+			avgB.add(1684559);	
+			avgBand.put(3, avgB);
+		}
+		else if(segments.containsKey(4)) {
+			//position 0 = coco
+			//position 1 = dante
+			avgB.add(1763706);
+			avgB.add(2302036);	
+			avgBand.put(4, avgB);
+		} else {
+			//position 0 = coco
+			//position 1 = dante
+			avgB.add(2125252);
+				
+			avgBand.put(5, avgB);
+		}
+	
 	}
 	
 	
