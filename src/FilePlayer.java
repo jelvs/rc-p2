@@ -14,7 +14,7 @@ public class FilePlayer extends Thread{
 	private static String url;
 	private static final String COCO = "C";
 	private static final String DANTE = "D";
-	private static TreeMap<Integer, ArrayList<String>> segments = new TreeMap<Integer, ArrayList<String>>();
+	private static TreeMap<Integer, ArrayList<Segment>> segments = new TreeMap<Integer, ArrayList<Segment>>();
 	private static Map<Integer, ArrayList<Integer>> avgBand = new HashMap<Integer, ArrayList<Integer>>();
 	private static ArrayList<String> seg = new ArrayList<String>();
 	private static ArrayList<Integer> avgB = new ArrayList<Integer>(); // average bandWidth
@@ -97,26 +97,23 @@ public class FilePlayer extends Thread{
 
 		BufferedReader in = new BufferedReader (new InputStreamReader(fromServer));
 		String content = "";
-
+		
 
 		while ((content = in.readLine()) != null) {
 			String[] tmp = content.split(" ");
-			String[] aux;
+			String[] aux = null;
 			if(!content.equals("")) {
-				if(content.startsWith("video") ) {
-						
+				if(content.startsWith("video") ) {		
 					tmp[0].split("/");
 					aux = tmp[0].substring(8).split("\\.m4s");
 					seg.add(aux[0]);
-
-					segments.put(Integer.parseInt(tmp[1]), seg );
-
+					segments.put(Integer.parseInt(tmp[1]), new ArrayList<Segment>() );
+					segments.get(Integer.parseInt(tmp[1])).add(new Segment(aux[0], Integer.parseInt(tmp[1])));
 				}	
+				
 			}
 
 		}
-
-
 
 		System.out.println("\n========================================");
 		System.out.println("\nGot an empty line, showing body \n");
@@ -134,8 +131,7 @@ public class FilePlayer extends Thread{
 		sock.close();
 
 
-
-
+	
 
 
 

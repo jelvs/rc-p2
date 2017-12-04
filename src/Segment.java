@@ -1,18 +1,14 @@
 
 public class Segment {
 
-	private final int quality;;
+	
 	private final String seg;
 	private final int dimension;
 	
-	public Segment(int quality, String seg, int dimension) {
-		this.quality = quality;
+	public Segment( String seg, int dimension) {
+		
 		this.seg = seg;
 		this.dimension = dimension;
-	}
-	
-	public int getQuality() {
-		return quality;
 	}
 	
 	public String getSeg() {
