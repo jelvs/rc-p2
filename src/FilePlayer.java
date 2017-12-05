@@ -2,6 +2,7 @@ import java.net.*;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -13,9 +14,7 @@ import java.io.*;
 public class FilePlayer extends Thread{
 
 	private static String url;
-	private static final String COCO = "C";
-	private static final String DANTE = "D";
-	private static TreeMap<Integer, ArrayList<Segment>> segments = new TreeMap<Integer, ArrayList<Segment>>();
+	private static Map<Integer, ArrayList<Segment>> segments = new HashMap<Integer, ArrayList<Segment>>();
 	private static Map<Integer, ArrayList<Integer>> avgBand = new HashMap<Integer, ArrayList<Integer>>();
 	private static ConcurrentLinkedDeque<byte[]> segmentsQueue = new ConcurrentLinkedDeque<>();
 	private static ArrayList<String> seg = new ArrayList<String>();
@@ -46,21 +45,31 @@ public class FilePlayer extends Thread{
 
 
 		String cmd = readLine(inputFromBrowser);
-			if(cmd.contains("coco")) {
-				url = args.length == 1 ? args[0] : "http://localhost:8080/coco/" ; 
-			}
-			else {
-				url = args.length == 1 ? args[0] : "http://localhost:8080/dante/" ;
-			}	
+		if(cmd.contains("coco")) {
+			url = args.length == 1 ? args[0] : "http://localhost:8080/coco/" ; 
+		}
+		else {
+			url = args.length == 1 ? args[0] : "http://localhost:8080/dante/" ;
+		}	
 
 		playoutDelay = args.length == 2 ? Integer.parseInt(args[1]) : 10;
+		
+		readDescription();
+
+
+
+
+		proxySocket.close();
+	}
+
+
+
+	public static void readDescription() throws Exception {
+
 		URL u = new URL(url);
-
-
 		System.out.println("\n========================================\n");
 		System.out.println("Processing url: "+url+"\n");
 		System.out.println("========================================\n");
-
 		System.out.println("protocol = " + u.getProtocol());
 		System.out.println("authority = " + u.getAuthority());
 		System.out.println("host = " + u.getHost());
@@ -70,9 +79,7 @@ public class FilePlayer extends Thread{
 		System.out.println("filename = " + u.getFile());
 		System.out.println("ref = " + u.getRef());
 		System.out.println(u);
-
 		// Assuming URL of the form http:// ....
-
 		InetAddress serverAddr = InetAddress.getByName(u.getHost());
 		int port = u.getPort();
 		if ( port == -1 ) port = 80;
@@ -80,30 +87,20 @@ public class FilePlayer extends Thread{
 		String descriptor = u.getPath().concat(TXT);
 		OutputStream toServer = sock.getOutputStream();
 		InputStream fromServer = sock.getInputStream();
-
 		System.out.println("\n========================================\n");
 		System.out.println("Connected to server");
-
 		String request = String.format("GET %s HTTP/1.0\r\n" + "User-Agent: X-RC2017\r\n\r\n", descriptor);
 		toServer.write(request.getBytes());
-
 		System.out.println("Sent request: "+ request);
 		System.out.println("========================================");
-
 		String answerLine = readLine(fromServer);
-
 		System.out.println("Got answer: "+ answerLine +"\n");
-
-
-
 		String[] result = parseHttpReply(answerLine);
 		answerLine = readLine(fromServer);
 		while ( !answerLine.equals("") ) {
 			System.out.println("Header line:\t" + answerLine);
 			answerLine = readLine(fromServer);
 		}
-
-
 		//Structure to read descriptor.txt
 		BufferedReader in = new BufferedReader (new InputStreamReader(fromServer));
 		String content = "";
@@ -115,28 +112,24 @@ public class FilePlayer extends Thread{
 				if(content.startsWith("Average")) {
 					avgB.add(Integer.parseInt(tmp2[1]));
 				}
-				if(content.startsWith("video") ) {		
-					seg.add(tmp[2]);
+				if(content.startsWith("video") ) {
 					segments.put(Integer.parseInt(tmp[1]), new ArrayList<Segment>());
-					segments.get(Integer.parseInt(tmp[1])).add(new Segment(tmp[2], Integer.parseInt(tmp[4])));
+					ArrayList<Segment> l = segments.get(Integer.parseInt(tmp[1]));
+					l.add(new Segment(tmp[2], Integer.parseInt(tmp[4])));
+					segments.put(Integer.parseInt(tmp[1]), l);
 					avgBand.put(Integer.parseInt(tmp[1]), avgB);
+
+
 				}	
 
 			}
 
 		}
-
-
-		System.out.println();
 		in.close();
 		sock.close();
-		proxySocket.close();
+
 	}
 
-	
-	
-	
-	
 
 	/**
 	 * Reads one message from the HTTP header
@@ -151,11 +144,6 @@ public class FilePlayer extends Thread{
 		}
 		return sb.toString() ;
 	} 
-
-	
-
-
-
 
 
 
@@ -207,7 +195,7 @@ public class FilePlayer extends Thread{
 		result[2] = reply.substring( pos1 + 1).trim();
 		return result;
 	}
-	
+
 	/**
 	 * Returns an input stream with an error message "Not Implemented"
 	 */
@@ -222,7 +210,7 @@ public class FilePlayer extends Thread{
 		reply.append( page );
 		return new ByteArrayInputStream( reply.toString().getBytes());
 	}
-	
+
 	/**
 	 * Returns an input stream with a very simple valid page with the text of the input
 	 */
@@ -236,7 +224,7 @@ public class FilePlayer extends Thread{
 		reply.append( page );
 		return new ByteArrayInputStream( reply.toString().getBytes());
 	}
-	
+
 
 
 }
