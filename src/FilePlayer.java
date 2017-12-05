@@ -51,14 +51,10 @@ public class FilePlayer extends Thread{
 			}
 			else {
 				url = args.length == 1 ? args[0] : "http://localhost:8080/dante/" ;
-			}
-		
+			}	
 
 		playoutDelay = args.length == 2 ? Integer.parseInt(args[1]) : 10;
 		URL u = new URL(url);
-
-
-
 
 
 		System.out.println("\n========================================\n");
@@ -107,10 +103,6 @@ public class FilePlayer extends Thread{
 			answerLine = readLine(fromServer);
 		}
 
-		int c ;
-		while( (c = fromServer.read() ) > 0 ) {
-			//System.out.print((char) c);
-		}
 
 		//Structure to read descriptor.txt
 		BufferedReader in = new BufferedReader (new InputStreamReader(fromServer));
@@ -215,6 +207,36 @@ public class FilePlayer extends Thread{
 		result[2] = reply.substring( pos1 + 1).trim();
 		return result;
 	}
+	
+	/**
+	 * Returns an input stream with an error message "Not Implemented"
+	 */
+	static InputStream notSupportedPageStream() {
+		final String page = 
+				"<HTML><BODY>Request Not Supported</BODY></HTML>" ;
+		int length = page.length();
+		StringBuilder reply = new StringBuilder("HTTP/1.0 501 Not Implemented\r\n");
+		reply.append("Date: "+new Date().toString()+"\r\n");
+		reply.append("Server: "+"The tiny server (v0.9)"+"\r\n");
+		reply.append("Content-Length: "+String.valueOf(length)+"\r\n\r\n");
+		reply.append( page );
+		return new ByteArrayInputStream( reply.toString().getBytes());
+	}
+	
+	/**
+	 * Returns an input stream with a very simple valid page with the text of the input
+	 */
+	static InputStream simplePageStream(String somePage) {
+		String page = "<HTML><BODY>" + somePage + "</BODY></HTML>";
+		int length = page.length();
+		StringBuilder reply = new StringBuilder("HTTP/1.0 200 OK\r\n");
+		reply.append("Date: "+new Date().toString()+"\r\n");
+		reply.append("Server: "+"The tiny server (v0.9)"+"\r\n");
+		reply.append("Content-Length: "+String.valueOf(length)+"\r\n\r\n");
+		reply.append( page );
+		return new ByteArrayInputStream( reply.toString().getBytes());
+	}
+	
 
 
 }
