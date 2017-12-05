@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.io.*;
 
 public class FilePlayer extends Thread{
@@ -16,6 +17,7 @@ public class FilePlayer extends Thread{
 	private static final String DANTE = "D";
 	private static TreeMap<Integer, ArrayList<Segment>> segments = new TreeMap<Integer, ArrayList<Segment>>();
 	private static Map<Integer, ArrayList<Integer>> avgBand = new HashMap<Integer, ArrayList<Integer>>();
+	private static ConcurrentLinkedDeque<byte[]> segmentsQueue = new ConcurrentLinkedDeque<>();
 	private static ArrayList<String> seg = new ArrayList<String>();
 	private static ArrayList<Integer> avgB = new ArrayList<Integer>(); // average bandWidth
 	private static long playoutDelay;
@@ -93,24 +95,20 @@ public class FilePlayer extends Thread{
 
 
 		//Structure to read descriptor.txt
-
-
 		BufferedReader in = new BufferedReader (new InputStreamReader(fromServer));
 		String content = "";
-		
+
 
 		while ((content = in.readLine()) != null) {
-			String[] tmp = content.split(" ");
-			String[] aux = null;
+			String [] tmp = content.split("/|\\s|\\.");
 			if(!content.equals("")) {
 				if(content.startsWith("video") ) {		
-					tmp[0].split("/");
-					aux = tmp[0].substring(8).split("\\.m4s");
-					seg.add(aux[0]);
-					segments.put(Integer.parseInt(tmp[1]), new ArrayList<Segment>() );
-					segments.get(Integer.parseInt(tmp[1])).add(new Segment(aux[0], Integer.parseInt(tmp[1])));
+					seg.add(tmp[2]);
+					segments.put(Integer.parseInt(tmp[1]), new ArrayList<Segment>());
+					segments.get(Integer.parseInt(tmp[1])).add(new Segment(tmp[2], Integer.parseInt(tmp[4])));
+					
 				}	
-				
+
 			}
 
 		}
@@ -118,9 +116,10 @@ public class FilePlayer extends Thread{
 		System.out.println("\n========================================");
 		System.out.println("\nGot an empty line, showing body \n");
 		System.out.println("========================================");
-
-		System.out.println(seg.get(5));
-
+		
+	
+	
+		
 		int c ;
 		while( (c = fromServer.read() ) > 0 ) {
 			System.out.print((char) c);
@@ -130,8 +129,6 @@ public class FilePlayer extends Thread{
 		in.close();
 		sock.close();
 
-
-	
 
 
 
