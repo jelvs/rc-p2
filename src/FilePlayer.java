@@ -94,6 +94,8 @@ public class FilePlayer extends Thread{
 		}
 
 
+		
+		
 		//Structure to read descriptor.txt
 		BufferedReader in = new BufferedReader (new InputStreamReader(fromServer));
 		String content = "";
@@ -101,24 +103,31 @@ public class FilePlayer extends Thread{
 
 		while ((content = in.readLine()) != null) {
 			String [] tmp = content.split("/|\\s|\\.");
+			String [] tmp2 = content.split(" ");
 			if(!content.equals("")) {
+				if(content.startsWith("Average")) {
+					avgB.add(Integer.parseInt(tmp2[1]));
+				}
 				if(content.startsWith("video") ) {		
 					seg.add(tmp[2]);
 					segments.put(Integer.parseInt(tmp[1]), new ArrayList<Segment>());
 					segments.get(Integer.parseInt(tmp[1])).add(new Segment(tmp[2], Integer.parseInt(tmp[4])));
-					
+					avgBand.put(Integer.parseInt(tmp[1]), avgB);
 				}	
 
 			}
 
 		}
+		
+		
+		
 
 		System.out.println("\n========================================");
 		System.out.println("\nGot an empty line, showing body \n");
 		System.out.println("========================================");
 		
 	
-	
+		
 		
 		int c ;
 		while( (c = fromServer.read() ) > 0 ) {
@@ -198,44 +207,7 @@ public class FilePlayer extends Thread{
 		return input;
 	}
 
-	private static void getAvgBand() {
-		if(segments.containsKey(1)) {
-			//position 0 = coco
-			//position 1 = dante
-			avgB.add(59314);
-			avgB.add(474213);	
-			avgBand.put(1, avgB);	
-		}
-		else if(segments.containsKey(2)) {
-			//position 0 = coco
-			//position 1 = dante
-			avgB.add(983096);
-			avgB.add(1110624);	
-			avgBand.put(2, avgB);
-		}
-		else if(segments.containsKey(3)) {
-			//position 0 = coco
-			//position 1 = dante
-			avgB.add(1363130);
-			avgB.add(1684559);	
-			avgBand.put(3, avgB);
-		}
-		else if(segments.containsKey(4)) {
-			//position 0 = coco
-			//position 1 = dante
-			avgB.add(1763706);
-			avgB.add(2302036);	
-			avgBand.put(4, avgB);
-		} else {
-			//position 0 = coco
-			//position 1 = dante
-			avgB.add(2125252);
-
-			avgBand.put(5, avgB);
-		}
-
-	}
-
+	
 
 
 	/**
