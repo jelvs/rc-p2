@@ -2,6 +2,7 @@ import java.net.*;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.io.*;
@@ -15,43 +16,193 @@ public class FilePlayer extends Thread{
 	private static ArrayList<Integer> avgB = new ArrayList<Integer>(); // average bandWidth
 	private static long playoutDelay;
 	private static String TXT = "descriptor.txt";
+	private static ArrayList<String> allcontent = new ArrayList<String>();
+
+	private static final String MP4 = ".mp4";
+	private static final String M4S = ".m4s";
 
 	public static void main(String[] args) throws Exception {
 
 		//structure to browser 
-		
-		ServerSocket proxySocket = new ServerSocket(1234);
-		System.out.println("ProxyServer ready at "+ 1234);
+
+
 
 		//proxySocket
 
+
+		ServerSocket proxySocket = new ServerSocket(1234);
+		System.out.println("ProxyServer ready at "+ 1234);
 		Socket browserSock= proxySocket.accept();
 		InputStream inputFromBrowser = browserSock.getInputStream();
 		OutputStream outToBrowser = browserSock.getOutputStream();
 		System.out.println("\n========================================\n");
 		System.out.println("Connected to browser");
-		
-		//processHTTPrequest( inputFromBrowser, outToBrowser );
-		//then processHTTPreply();
 
-		String cmd = readLine(inputFromBrowser);
+
+		String requestS = readLine(inputFromBrowser);
+		String request = requestS;
+		System.out.println( "received: "+requestS );
+		while ( !requestS.equals("") ) {
+			requestS = readLine(inputFromBrowser);
+			System.out.println("Header line:\t" + requestS);
+
+		}
+
+		int quality = 1;
+		int index = 0;
+		if(request.contains("start")) {
+			getMyFilm(request, args);
+			readDescription();
+			new Thread(() -> {
+				getMySegments();
+			}).start();
+			System.out.println(segmentsQueue.size());
+			boolean canI = false;
+			while(!canI) {
+				if(segmentsQueue.size() >=2) {
+					System.out.println(segmentsQueue.size());
+					System.out.println(segments.get(quality).get(index).getSeg());
+					if(segments.get(quality).get(index).getSeg() != null) {
+
+						byte[] initBuf = segmentsQueue.poll();
+						byte[] buffer = segmentsQueue.poll();
+						int totallength = initBuf.length + buffer.length; 
+						System.out.println(initBuf+ "e" +buffer);
+						StringBuilder reply = new StringBuilder("HTTP/1.1 200 OK\r\n");
+						reply.append("Date: "+new Date().toString()+"\r\n");
+						reply.append("Server: The proxy server bitch (v0.9) \r\n" );
+						reply.append("Access-Control-Allow-Origin: * \r\n");
+						reply.append("Content-Length: "+ totallength +"\r\n");
+						reply.append(allcontent.get(quality) + "\r\n\r\n");
+						outToBrowser.write(reply.toString().getBytes());
+						outToBrowser.write(initBuf,0,initBuf.length);
+						outToBrowser.write(buffer,0, buffer.length);
+						index +=2;
+						canI = true;
+					}
+				}
+			}
+		}
+		int indexS = 2;
+		while(indexS < segments.get(quality).size()) {
+			
+
+			requestS = readLine(inputFromBrowser);
+			request = requestS;
+			System.out.println( "received: "+ requestS );
+			while ( !requestS.equals("") ) {
+				requestS = readLine(inputFromBrowser);
+				System.out.println("Header line:\t" + requestS);
+			}
+			if(request.contains("next")) {
+				if(segments.get(quality).get(indexS).getSeg() != null) {
+					byte[] buffer = segmentsQueue.poll(); 
+					StringBuilder reply = new StringBuilder("HTTP/1.1 200 OK\r\n");
+					reply.append("Date: "+new Date().toString()+"\r\n");
+					reply.append("Server: The proxy server bitch (v0.9) \r\n" );
+					reply.append("Access-Control-Allow-Origin: * \r\n");
+					reply.append("Content-Length: "+ buffer.length +"\r\n");
+					reply.append(allcontent.get(quality) + "\r\n\r\n");
+					outToBrowser.write(reply.toString().getBytes());
+					outToBrowser.write(buffer,0, buffer.length);
+					indexS++;
+				}else {
+					byte[] buffer = segmentsQueue.poll();
+					StringBuilder reply = new StringBuilder("HTTP/1.1 200 OK\r\n");
+					outToBrowser.write(reply.toString().getBytes());
+					outToBrowser.write(buffer,0, 0);
+					browserSock.close();
+				}
+			}
+		}
+		proxySocket.close();
+		
+		
+	}
+
+
+
+	public static void getMyFilm(String cmd, String[] args) {
 		if(cmd.contains("coco")) {
 			url = args.length == 1 ? args[0] : "http://localhost:8080/coco/" ; 
+
 		}
 		else {
 			url = args.length == 1 ? args[0] : "http://localhost:8080/dante/" ;
-		}	
+		}
+		playoutDelay = args.length == 2 ? Integer.parseInt(args[1]) : 10;
 
-		playoutDelay = args.length == 2 ? Integer.parseInt(args[1]) : 10;	
-		readDescription();
-		proxySocket.close();
 	}
 
-	
-	
+	public static void getMySegments() {
+
+		new Thread(() -> {
+			int quality = 1;
+			int nextSegment= 0;
+
+			String ineedTHISTOO = "" + quality + "/";
+			try {
+				segmentsQueue = new ConcurrentLinkedDeque<>();
+
+				for (;;) {
+					while(segmentsQueue.size() < 5) {
+						URL urls = new URL(url);
+						System.out.println("\n========================================\n");
+						
+
+						InetAddress serverAddr = InetAddress.getByName(urls.getHost());
+						int port = urls.getPort();
+						if ( port == -1 ) port = 80;
+						Socket sock = new Socket( serverAddr, port );
+						OutputStream toServer = sock.getOutputStream();
+						InputStream fromServer = sock.getInputStream();
+						String format = "";
+						if(nextSegment <= 49) {	
+							if(segments.get(quality).get(nextSegment).getSeg().equals("init")) {
+								format = MP4;
+							}
+							else {
+								format = M4S;
+							}
+
+							String segment = urls.getPath().concat("video/" + ineedTHISTOO + segments.get(quality).get(nextSegment).getSeg());
+							String request = String.format("GET %s HTTP/1.0\r\n" + "User-Agent: X-RC2017\r\n\r\n", segment + format );
+							toServer.write(request.getBytes());
+
+							System.out.println("Sent request: "+ request);
+							System.out.println("========================================");
+
+							String answerLine = readLine(fromServer);
+
+							System.out.println("Got answer: "+ answerLine +"\n");
+							while ( !answerLine.equals("") ) {
+								answerLine = readLine(fromServer);
+								System.out.println("Header line:\t" + answerLine);
+
+							}
+							ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+							int nRead;
+							byte[] buf = new byte[16384];
+							while ((nRead = fromServer.read(buf, 0, buf.length)) != -1) {
+								buffer.write(buf, 0, nRead);
+							}
+							buffer.flush();
+							segmentsQueue.addLast(buffer.toByteArray());
+							nextSegment++;
+							sock.close();
+						}
+					}
+					
+				}
+			} catch(IOException e) {
+			}
+
+		}).start();
+
+	}
 	public static void readDescription() throws Exception {
 		URL u = new URL(url);
-		
+
 		System.out.println("\n========================================\n");
 		System.out.println("Processing url: "+url+"\n");
 		System.out.println("========================================\n");
@@ -64,7 +215,7 @@ public class FilePlayer extends Thread{
 		System.out.println("filename = " + u.getFile());
 		System.out.println("ref = " + u.getRef());
 		System.out.println(u);
-		
+
 		// Assuming URL of the form http:// ....
 		InetAddress serverAddr = InetAddress.getByName(u.getHost());
 		int port = u.getPort();
@@ -73,29 +224,32 @@ public class FilePlayer extends Thread{
 		String descriptor = u.getPath().concat(TXT);
 		OutputStream toServer = sock.getOutputStream();
 		InputStream fromServer = sock.getInputStream();
-		
+
 		System.out.println("\n========================================\n");
 		System.out.println("Connected to server");
 		String request = String.format("GET %s HTTP/1.0\r\n" + "User-Agent: X-RC2017\r\n\r\n", descriptor);
 		toServer.write(request.getBytes());
-		
+
 		System.out.println("Sent request: "+ request);
 		System.out.println("========================================");
 		String answerLine = readLine(fromServer);
 		System.out.println("Got answer: "+ answerLine +"\n");
-		
+
 		String[] result = parseHttpReply(answerLine);
 		answerLine = readLine(fromServer);
 		while ( !answerLine.equals("") ) {
 			System.out.println("Header line:\t" + answerLine);
 			answerLine = readLine(fromServer);
 		}
-		
+
 		//Structure to read descriptor.txt
 		BufferedReader in = new BufferedReader (new InputStreamReader(fromServer));
 		String content = "";
-
+		allcontent = new ArrayList<>();
 		while ((content = in.readLine()) != null) {
+			if(content.startsWith("Content-type:")) {
+				allcontent.add(content);
+			}
 			String [] tmp = content.split("/|\\s|\\.");
 			String [] tmp2 = content.split(" ");
 			if(!content.equals("")) {
@@ -103,6 +257,7 @@ public class FilePlayer extends Thread{
 					int qualityNumber = Integer.parseInt(tmp[1]);
 					for(int i=1; i<= qualityNumber; i++) {
 						segments.put(i, new ArrayList<Segment>());
+						avgBand.put(i, new ArrayList<Integer>());
 					}	
 				}
 				if(content.startsWith("Average")) {
@@ -122,8 +277,17 @@ public class FilePlayer extends Thread{
 
 		System.out.println(segments.get(1).size());
 	}
-
-
+	
+	/*
+	 * Calculate avgBand
+	 */
+	private static double calcAverageBand() {
+		
+		return 0;
+      
+		
+	}
+		
 	/**
 	 * Reads one message from the HTTP header
 	 */
@@ -137,7 +301,7 @@ public class FilePlayer extends Thread{
 		}
 		return sb.toString() ;
 	} 
-	
+
 	/**
 	 * Parses the first line of the HTTP request and returns an array
 	 * of three strings: reply[0] = method, reply[1] = object and reply[2] = version
@@ -146,7 +310,7 @@ public class FilePlayer extends Thread{
 	 * 
 	 * If the input is malformed, it returns something unpredictable
 	 */
-	
+
 	public static String[] parseHttpRequest( String request) {
 		String[] error = { "ERROR", "", "" };
 		String[] result = { "", "", "" };
@@ -162,7 +326,7 @@ public class FilePlayer extends Thread{
 		if(! result[2].startsWith("HTTP")) return error;
 		return result;
 	}
-	
+
 	/**
 	 * Parses the first line of the HTTP reply and returns an array
 	 * of three strings: reply[0] = version, reply[1] = number and reply[2] = result message
