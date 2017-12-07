@@ -25,11 +25,7 @@ public class FilePlayer extends Thread{
 
 		//structure to browser 
 
-
-
 		//proxySocket
-
-
 		ServerSocket proxySocket = new ServerSocket(1234);
 		System.out.println("ProxyServer ready at "+ 1234);
 		Socket browserSock= proxySocket.accept();
@@ -37,7 +33,6 @@ public class FilePlayer extends Thread{
 		OutputStream outToBrowser = browserSock.getOutputStream();
 		System.out.println("\n========================================\n");
 		System.out.println("Connected to browser");
-
 
 		String requestS = readLine(inputFromBrowser);
 		String request = requestS;
@@ -85,18 +80,18 @@ public class FilePlayer extends Thread{
 		}
 		int indexS = 2;
 		while(indexS < segments.get(quality).size()) {
-			
 
 			requestS = readLine(inputFromBrowser);
 			request = requestS;
 			System.out.println( "received: "+ requestS );
 			while ( !requestS.equals("") ) {
 				requestS = readLine(inputFromBrowser);
-				System.out.println("Header line:\t" + requestS);
+				//System.out.println("Header line:\t" + requestS);
 			}
 			if(request.contains("next")) {
+				byte[] buffer = segmentsQueue.poll(); 
 				if(segments.get(quality).get(indexS).getSeg() != null) {
-					byte[] buffer = segmentsQueue.poll(); 
+					
 					StringBuilder reply = new StringBuilder("HTTP/1.1 200 OK\r\n");
 					reply.append("Date: "+new Date().toString()+"\r\n");
 					reply.append("Server: The proxy server bitch (v0.9) \r\n" );
@@ -107,12 +102,13 @@ public class FilePlayer extends Thread{
 					outToBrowser.write(buffer,0, buffer.length);
 					indexS++;
 				}else {
-					byte[] buffer = segmentsQueue.poll();
+					byte[] buf = new byte[0];
 					StringBuilder reply = new StringBuilder("HTTP/1.1 200 OK\r\n");
 					outToBrowser.write(reply.toString().getBytes());
-					outToBrowser.write(buffer,0, 0);
+					outToBrowser.write(buf,0, buf.length);
 					browserSock.close();
 				}
+				
 			}
 		}
 		proxySocket.close();
@@ -136,20 +132,18 @@ public class FilePlayer extends Thread{
 
 	public static void getMySegments() {
 
-		new Thread(() -> {
+		
 			int quality = 1;
 			int nextSegment= 0;
 
 			String ineedTHISTOO = "" + quality + "/";
 			try {
 				segmentsQueue = new ConcurrentLinkedDeque<>();
-
+				URL urls = new URL(url);
+				System.out.println("\n========================================\n");
 				for (;;) {
 					while(segmentsQueue.size() < 5) {
-						URL urls = new URL(url);
-						System.out.println("\n========================================\n");
 						
-
 						InetAddress serverAddr = InetAddress.getByName(urls.getHost());
 						int port = urls.getPort();
 						if ( port == -1 ) port = 80;
@@ -168,7 +162,10 @@ public class FilePlayer extends Thread{
 							String segment = urls.getPath().concat("video/" + ineedTHISTOO + segments.get(quality).get(nextSegment).getSeg());
 							String request = String.format("GET %s HTTP/1.0\r\n" + "User-Agent: X-RC2017\r\n\r\n", segment + format );
 							toServer.write(request.getBytes());
-
+							
+							double iTime = System.currentTimeMillis();
+							
+							System.out.println("\n========================================\n");
 							System.out.println("Sent request: "+ request);
 							System.out.println("========================================");
 
@@ -177,7 +174,7 @@ public class FilePlayer extends Thread{
 							System.out.println("Got answer: "+ answerLine +"\n");
 							while ( !answerLine.equals("") ) {
 								answerLine = readLine(fromServer);
-								System.out.println("Header line:\t" + answerLine);
+								//System.out.println("Header line:\t" + answerLine);
 
 							}
 							ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -196,8 +193,6 @@ public class FilePlayer extends Thread{
 				}
 			} catch(IOException e) {
 			}
-
-		}).start();
 
 	}
 	public static void readDescription() throws Exception {
