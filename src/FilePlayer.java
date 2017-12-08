@@ -14,12 +14,16 @@ public class FilePlayer extends Thread{
 	private static Map<Integer, ArrayList<Integer>> avgBand = new HashMap<Integer, ArrayList<Integer>>();
 	private static ConcurrentLinkedDeque<byte[]> segmentsQueue = new ConcurrentLinkedDeque<>();
 	private static ArrayList<Integer> avgB = new ArrayList<Integer>(); // average bandWidth
-	private static long playoutDelay;
-	private static String TXT = "descriptor.txt";
 	private static ArrayList<String> allcontent = new ArrayList<String>();
+	private static String TXT = "descriptor.txt";
+	private static long playoutDelay;
+	private static double rTime;
+	private static double sTime;
+	private static int bestQuality;
 
 	private static final String MP4 = ".mp4";
 	private static final String M4S = ".m4s";
+
 
 	public static void main(String[] args) throws Exception {
 
@@ -57,41 +61,40 @@ public class FilePlayer extends Thread{
 				if(segmentsQueue.size() >=2) {
 					System.out.println(segmentsQueue.size());
 					System.out.println(segments.get(quality).get(index).getSeg());
-					if(segments.get(quality).get(index).getSeg() != null) {
 
-						byte[] initBuf = segmentsQueue.poll();
-						byte[] buffer = segmentsQueue.poll();
-						int totallength = initBuf.length + buffer.length; 
-						System.out.println(initBuf+ "e" +buffer);
-						StringBuilder reply = new StringBuilder("HTTP/1.1 200 OK\r\n");
-						reply.append("Date: "+new Date().toString()+"\r\n");
-						reply.append("Server: The proxy server bitch (v0.9) \r\n" );
-						reply.append("Access-Control-Allow-Origin: * \r\n");
-						reply.append("Content-Length: "+ totallength +"\r\n");
-						reply.append(allcontent.get(quality) + "\r\n\r\n");
-						outToBrowser.write(reply.toString().getBytes());
-						outToBrowser.write(initBuf,0,initBuf.length);
-						outToBrowser.write(buffer,0, buffer.length);
-						index +=2;
-						canI = true;
-					}
+					byte[] initBuf = segmentsQueue.poll();
+					byte[] buffer = segmentsQueue.poll();
+					int totallength = initBuf.length + buffer.length; 
+					System.out.println(initBuf+ "e" +buffer);
+					StringBuilder reply = new StringBuilder("HTTP/1.1 200 OK\r\n");
+					reply.append("Date: "+new Date().toString()+"\r\n");
+					reply.append("Server: The proxy server bitch (v0.9) \r\n" );
+					reply.append("Access-Control-Allow-Origin: * \r\n");
+					reply.append("Content-Length: "+ totallength +"\r\n");
+					reply.append(allcontent.get(quality) + "\r\n\r\n");
+					outToBrowser.write(reply.toString().getBytes());
+					outToBrowser.write(initBuf,0,initBuf.length);
+					outToBrowser.write(buffer,0, buffer.length);
+					index +=2;
+					canI = true;
+
 				}
 			}
 		}
-		int indexS = 2;
-		while(indexS < segments.get(quality).size()) {
-
+		int indexS = 1;
+		while(indexS < (segments.get(quality).size()-1)) {
+			System.out.println(indexS);
 			requestS = readLine(inputFromBrowser);
 			request = requestS;
 			System.out.println( "received: "+ requestS );
 			while ( !requestS.equals("") ) {
 				requestS = readLine(inputFromBrowser);
-				//System.out.println("Header line:\t" + requestS);
+				System.out.println("Header line:\t" + requestS);
 			}
 			if(request.contains("next")) {
 				byte[] buffer = segmentsQueue.poll(); 
 				if(segments.get(quality).get(indexS).getSeg() != null) {
-					
+
 					StringBuilder reply = new StringBuilder("HTTP/1.1 200 OK\r\n");
 					reply.append("Date: "+new Date().toString()+"\r\n");
 					reply.append("Server: The proxy server bitch (v0.9) \r\n" );
@@ -101,19 +104,33 @@ public class FilePlayer extends Thread{
 					outToBrowser.write(reply.toString().getBytes());
 					outToBrowser.write(buffer,0, buffer.length);
 					indexS++;
-				}else {
-					byte[] buf = new byte[0];
-					StringBuilder reply = new StringBuilder("HTTP/1.1 200 OK\r\n");
-					outToBrowser.write(reply.toString().getBytes());
-					outToBrowser.write(buf,0, buf.length);
-					browserSock.close();
+					System.out.println(segments.get(quality).get(indexS).getSeg());
 				}
-				
 			}
 		}
+		System.out.println("badjoraz");
+		requestS = readLine(inputFromBrowser);
+		request = requestS;
+		System.out.println( "received: "+ requestS );
+		while ( !requestS.equals("") ) {
+			requestS = readLine(inputFromBrowser);
+			System.out.println("Header line:\t" + requestS);
+		}
+
+		byte[] buf = new byte[0];
+		StringBuilder reply = new StringBuilder("HTTP/1.1 200 OK\r\n");
+		reply.append("Date: "+new Date().toString()+"\r\n");
+		reply.append("Server: The proxy server bitch (v0.9) \r\n" );
+		reply.append("Access-Control-Allow-Origin: * \r\n");
+		reply.append("Content-Length: "+ buf.length +"\r\n");
+		//reply.append(allcontent.get(quality) + "\r\n\r\n");
+		outToBrowser.write(reply.toString().getBytes());
+		outToBrowser.write(buf, 0 , buf.length);
+		browserSock.close();
 		proxySocket.close();
-		
-		
+
+
+
 	}
 
 
@@ -132,67 +149,74 @@ public class FilePlayer extends Thread{
 
 	public static void getMySegments() {
 
-		
-			int quality = 1;
-			int nextSegment= 0;
+		List<Double> averageBands = new ArrayList<>();
+		int quality = 1;
+		int nextSegment= 0;
+		double averageBand = 0;
+		int bestQuality = 0;
 
-			String ineedTHISTOO = "" + quality + "/";
-			try {
-				segmentsQueue = new ConcurrentLinkedDeque<>();
-				URL urls = new URL(url);
-				System.out.println("\n========================================\n");
-				for (;;) {
-					while(segmentsQueue.size() < 5) {
-						
-						InetAddress serverAddr = InetAddress.getByName(urls.getHost());
-						int port = urls.getPort();
-						if ( port == -1 ) port = 80;
-						Socket sock = new Socket( serverAddr, port );
-						OutputStream toServer = sock.getOutputStream();
-						InputStream fromServer = sock.getInputStream();
-						String format = "";
-						if(nextSegment <= 49) {	
-							if(segments.get(quality).get(nextSegment).getSeg().equals("init")) {
-								format = MP4;
-							}
-							else {
-								format = M4S;
-							}
-
-							String segment = urls.getPath().concat("video/" + ineedTHISTOO + segments.get(quality).get(nextSegment).getSeg());
-							String request = String.format("GET %s HTTP/1.0\r\n" + "User-Agent: X-RC2017\r\n\r\n", segment + format );
-							toServer.write(request.getBytes());
-							
-							double iTime = System.currentTimeMillis();
-							
-							System.out.println("\n========================================\n");
-							System.out.println("Sent request: "+ request);
-							System.out.println("========================================");
-
-							String answerLine = readLine(fromServer);
-
-							System.out.println("Got answer: "+ answerLine +"\n");
-							while ( !answerLine.equals("") ) {
-								answerLine = readLine(fromServer);
-								//System.out.println("Header line:\t" + answerLine);
-
-							}
-							ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-							int nRead;
-							byte[] buf = new byte[16384];
-							while ((nRead = fromServer.read(buf, 0, buf.length)) != -1) {
-								buffer.write(buf, 0, nRead);
-							}
-							buffer.flush();
-							segmentsQueue.addLast(buffer.toByteArray());
-							nextSegment++;
-							sock.close();
-						}
-					}
+		String ineedTHISTOO = "" + quality + "/";
+		try {
+			segmentsQueue = new ConcurrentLinkedDeque<>();
+			URL urls = new URL(url);
+			System.out.println("\n========================================\n");
+			for (;;) {
+				bestQuality = getBestQuality(averageBand);
+				while(segmentsQueue.size() < 5 && nextSegment < segments.get(quality).size()) {
 					
+					InetAddress serverAddr = InetAddress.getByName(urls.getHost());
+					int port = urls.getPort();
+					if ( port == -1 ) port = 80;
+					Socket sock = new Socket( serverAddr, port );
+					OutputStream toServer = sock.getOutputStream();
+					InputStream fromServer = sock.getInputStream();
+					String format = "";
+					if(nextSegment <= 49) {	
+						if(segments.get(quality).get(nextSegment).getSeg().equals("init")) {
+							format = MP4;
+						}
+						else {
+							format = M4S;
+						}
+
+						String segment = urls.getPath().concat("video/" + ineedTHISTOO + segments.get(quality).get(nextSegment).getSeg());
+						String request = String.format("GET %s HTTP/1.0\r\n" + "User-Agent: X-RC2017\r\n\r\n", segment + format );
+						toServer.write(request.getBytes());
+						
+						sTime = System.currentTimeMillis();
+						
+						System.out.println("\n========================================\n");
+						System.out.println("Sent request: "+ request);
+						System.out.println("========================================");
+
+						String answerLine = readLine(fromServer);
+
+						System.out.println("Got answer: "+ answerLine +"\n");
+						while ( !answerLine.equals("") ) {
+							answerLine = readLine(fromServer);
+							//System.out.println("Header line:\t" + answerLine);
+
+						}
+						ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+						int nRead;
+						byte[] buf = new byte[16384];
+						while ((nRead = fromServer.read(buf, 0, buf.length)) != -1) {
+							buffer.write(buf, 0, nRead);
+						}
+						rTime = System.currentTimeMillis();
+						double dimension = segments.get(quality).get(nextSegment).getDimension();
+						averageBand = calcAverageBand(averageBands, rTime, sTime, dimension);
+						System.out.println("averageBand: " + averageBand );
+						buffer.flush();
+						segmentsQueue.addLast(buffer.toByteArray());
+						nextSegment++;
+						sock.close();
+					}
 				}
-			} catch(IOException e) {
+
 			}
+		} catch(IOException e) {
+		}
 
 	}
 	public static void readDescription() throws Exception {
@@ -274,15 +298,46 @@ public class FilePlayer extends Thread{
 	}
 	
 	/*
-	 * Calculate avgBand
+	 * Finds best Quality to download next Segment
 	 */
-	private static double calcAverageBand() {
-		
-		return 0;
-      
+	private static int getBestQuality(double averageBand) {
+		int quality = 1;
+		if(averageBand <= avgB.get(0)) {
+			quality = 1;
+		}else if(averageBand <= avgB.get(1) && averageBand > avgB.get(0)) {
+			quality = 2;
+		}else if(averageBand <= avgB.get(2) && averageBand > avgB.get(1)) {
+			quality = 3;
+		}else if(averageBand <= avgB.get(3) && averageBand > avgB.get(2)) {
+			quality = 4;
+		}else if(averageBand <= avgB.get(4) && averageBand > avgB.get(3)) {
+			quality = 5;
+		}
+		return quality;
 		
 	}
+
+	/*
+	 * Calculate avgBand
+	 */
+	private static double calcAverageBand(List<Double> list, double rTime, double sTime, double dimension) {
+		double sum = 0;
+		double band = dimension / ((rTime - sTime) / 1000);
 		
+		list.add(band);
+		//da QUEUE 5 ??
+		if(list.size() > 5) {
+			list.remove(0);
+		}
+		for (Double l : list) {
+			sum +=l;
+		}
+		
+		return sum/list.size();
+
+
+	}
+
 	/**
 	 * Reads one message from the HTTP header
 	 */
