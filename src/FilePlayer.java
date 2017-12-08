@@ -19,7 +19,7 @@ public class FilePlayer extends Thread{
 	private static long playoutDelay;
 	private static double rTime;
 	private static double sTime;
-	private static int bestQuality;
+	private static int bestQuality = 1;
 
 	private static final String MP4 = ".mp4";
 	private static final String M4S = ".m4s";
@@ -82,7 +82,7 @@ public class FilePlayer extends Thread{
 			}
 		}
 		int indexS = 1;
-		while(indexS < (segments.get(quality).size()-1)) {
+		while(indexS < (segments.get(bestQuality).size()-1)) {
 			System.out.println(indexS);
 			requestS = readLine(inputFromBrowser);
 			request = requestS;
@@ -93,7 +93,7 @@ public class FilePlayer extends Thread{
 			}
 			if(request.contains("next")) {
 				byte[] buffer = segmentsQueue.poll(); 
-				if(segments.get(quality).get(indexS).getSeg() != null) {
+				if(segments.get(bestQuality).get(indexS).getSeg() != null) {
 
 					StringBuilder reply = new StringBuilder("HTTP/1.1 200 OK\r\n");
 					reply.append("Date: "+new Date().toString()+"\r\n");
@@ -104,7 +104,7 @@ public class FilePlayer extends Thread{
 					outToBrowser.write(reply.toString().getBytes());
 					outToBrowser.write(buffer,0, buffer.length);
 					indexS++;
-					System.out.println(segments.get(quality).get(indexS).getSeg());
+					System.out.println(segments.get(bestQuality).get(indexS).getSeg());
 				}
 			}
 		}
@@ -153,16 +153,16 @@ public class FilePlayer extends Thread{
 		int quality = 1;
 		int nextSegment= 0;
 		double averageBand = 0;
-		int bestQuality = 0;
+		bestQuality = getBestQuality(averageBand);
 
-		String ineedTHISTOO = "" + quality + "/";
+		String ineedTHISTOO = "" + bestQuality + "/";
 		try {
 			segmentsQueue = new ConcurrentLinkedDeque<>();
 			URL urls = new URL(url);
 			System.out.println("\n========================================\n");
 			for (;;) {
-				bestQuality = getBestQuality(averageBand);
-				while(segmentsQueue.size() < 5 && nextSegment < segments.get(quality).size()) {
+				
+				while(segmentsQueue.size() < 5 && nextSegment < segments.get(bestQuality).size()) {
 					
 					InetAddress serverAddr = InetAddress.getByName(urls.getHost());
 					int port = urls.getPort();
@@ -172,14 +172,15 @@ public class FilePlayer extends Thread{
 					InputStream fromServer = sock.getInputStream();
 					String format = "";
 					if(nextSegment <= 49) {	
-						if(segments.get(quality).get(nextSegment).getSeg().equals("init")) {
+						System.out.println("new quality : " + bestQuality);
+						if(segments.get(bestQuality).get(nextSegment).getSeg().equals("init")) {
 							format = MP4;
 						}
 						else {
 							format = M4S;
 						}
-
-						String segment = urls.getPath().concat("video/" + ineedTHISTOO + segments.get(quality).get(nextSegment).getSeg());
+						
+						String segment = urls.getPath().concat("video/" + ineedTHISTOO + segments.get(bestQuality).get(nextSegment).getSeg());
 						String request = String.format("GET %s HTTP/1.0\r\n" + "User-Agent: X-RC2017\r\n\r\n", segment + format );
 						toServer.write(request.getBytes());
 						
@@ -204,7 +205,7 @@ public class FilePlayer extends Thread{
 							buffer.write(buf, 0, nRead);
 						}
 						rTime = System.currentTimeMillis();
-						double dimension = segments.get(quality).get(nextSegment).getDimension();
+						double dimension = segments.get(bestQuality).get(nextSegment).getDimension();
 						averageBand = calcAverageBand(averageBands, rTime, sTime, dimension);
 						System.out.println("averageBand: " + averageBand );
 						buffer.flush();
