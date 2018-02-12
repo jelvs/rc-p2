@@ -80,7 +80,7 @@ public class FilePlayer extends Thread{
 						outToBrowser.write(initBuf,0,initBuf.length);
 						outToBrowser.write(buffer,0, buffer.length);
 						index +=2;
-						canI = true;
+						canI = true ;
 					}
 				}
 			}
